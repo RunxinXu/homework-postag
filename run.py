@@ -323,6 +323,7 @@ def main():
             truncation=True,
             # We use this argument because the texts in our dataset are lists of words (with a label for each word).
             is_split_into_words=True,
+            max_length=512
         )
         labels = []
         for i, label in enumerate(raw_labels):
@@ -490,9 +491,35 @@ def main():
         # Save predictions
         output_test_predictions_file = os.path.join(training_args.output_dir, "test_predictions.txt")
         if trainer.is_world_process_zero():
+            # with open(output_test_predictions_file, "w") as writer:
+            #     for prediction in true_predictions:
+            #         writer.write(" ".join(prediction) + "\n")
             with open(output_test_predictions_file, "w") as writer:
-                for prediction in true_predictions:
-                    writer.write(" ".join(prediction) + "\n")
+                all_sentences = open(data_args.test_file).readlines()
+                
+                for sentence, prediction in zip(all_sentences, true_predictions):
+                    sentence = sentence.strip().split('  ')
+                    new_sentence = []
+                    for word in sentence:
+                        if word.find('/') != -1:
+                            word = word.split('/')[0]
+                        for w in word:
+                            new_sentence.append(w)
+                    maintain_word = ''
+                    maintain_pre = ''
+                    for w, pre in zip(new_sentence, prediction):
+                        if pre.startswith('B'):
+                            if maintain_word != '':
+                                writer.write('  {}/{}'.format(maintain_word, maintain_pre))
+                            maintain_word = ''
+                            maintain_pre = ''
+                            maintain_word += w
+                            maintain_pre = pre[2:]
+                        else:
+                            maintain_word += w
+                    if maintain_word != '':
+                        writer.write('  {}/{}'.format(maintain_word, maintain_pre))
+                    writer.write('\n')
 
 
 def _mp_fn(index):

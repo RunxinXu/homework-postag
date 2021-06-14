@@ -1,8 +1,8 @@
 #!/bin/bash
 
-GPU=1
-OUTPUT=fanti
-TASK=fanti # ['jianti', 'fanti']
+GPU=0
+OUTPUT=jianti
+TASK=jianti # ['jianti', 'fanti']
 
 EPOCH=10
 BSZ=16
@@ -13,7 +13,7 @@ WEIGHT_DECAY=0.01
 if [ $TASK == "jianti" ]
 then
     echo "jianti"
-    TRAIN_FILE=data/jianti.train
+    TRAIN_FILE=data/jianti.train.aug
     DEV_FILE=data/jianti.dev
     TEST_FILE=data/jianti.dev
     META_FILE=data/jianti.meta
