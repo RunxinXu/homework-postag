@@ -50,6 +50,7 @@ check_min_version("4.6.0.dev0")
 logger = logging.getLogger(__name__)
 
 
+
 @dataclass
 class ModelArguments:
     """
@@ -200,6 +201,13 @@ def main():
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
             )
 
+    if data_args.task_name == 'fanti':
+        PAD_TYPE = 'Vc'
+    elif data_args.task_name == 'jianti':
+        PAD_TYPE = 'k'
+    else:
+        assert False
+
     # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -307,13 +315,24 @@ def main():
             raw_label = []
             line = line.rstrip().split('  ')
             for l in line:
-                word, word_type  = l.split('/')
-                for w_i, w in enumerate(word):
-                    raw_sentence.append(w)
-                    if w_i == 0:
-                        raw_label.append('B-{}'.format(word_type))
-                    else:
-                        raw_label.append('I-{}'.format(word_type))
+                if l.find('/') != -1:
+                    word, word_type  = l.split('/')
+                    for w_i, w in enumerate(word):
+                        raw_sentence.append(w)
+                        if w_i == 0:
+                            raw_label.append('B-{}'.format(word_type))
+                        else:
+                            raw_label.append('I-{}'.format(word_type))
+                else:
+                    word = l
+                    word_type = PAD_TYPE
+                    for w_i, w in enumerate(word):
+                        raw_sentence.append(w)
+                        if w_i == 0:
+                            raw_label.append('B-{}'.format(word_type))
+                        else:
+                            raw_label.append('I-{}'.format(word_type))
+
             raw_sentences.append(raw_sentence)
             raw_labels.append(raw_label)
 
@@ -495,22 +514,23 @@ def main():
             #     for prediction in true_predictions:
             #         writer.write(" ".join(prediction) + "\n")
             with open(output_test_predictions_file, "w") as writer:
-                all_sentences = open(data_args.test_file).readlines()
-                
-                for sentence, prediction in zip(all_sentences, true_predictions):
-                    sentence = sentence.strip().split('  ')
-                    new_sentence = []
-                    for word in sentence:
-                        if word.find('/') != -1:
-                            word = word.split('/')[0]
-                        for w in word:
-                            new_sentence.append(w)
+                # all_sentences = open(data_args.test_file).readlines()
+                ii = 0
+                for sentence, prediction in zip(test_dataset, true_predictions):
+                    sentence = sentence['input_ids']
+                    new_sentence = tokenizer.convert_ids_to_tokens(sentence)[1:-1]
                     maintain_word = ''
                     maintain_pre = ''
+                    f = False
+                    assert len(new_sentence) == len(prediction)
                     for w, pre in zip(new_sentence, prediction):
                         if pre.startswith('B'):
                             if maintain_word != '':
-                                writer.write('  {}/{}'.format(maintain_word, maintain_pre))
+                                if not f:
+                                    writer.write('{}/{}'.format(maintain_word, maintain_pre))
+                                    f = True
+                                else:
+                                    writer.write('  {}/{}'.format(maintain_word, maintain_pre))
                             maintain_word = ''
                             maintain_pre = ''
                             maintain_word += w
